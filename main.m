@@ -1,4 +1,5 @@
 clear; close all; clc;
+addpath Simullink/ plots/
 
 params = struct();
 
@@ -54,3 +55,10 @@ dzam_0 = x0(7);
 % Exact nonlinear velocity inverse (dividing by cos(phi_0))
 dphi_0 = (dzam_0 - dzaf_0) / ((params.lf + params.lm) * cos(phi_0));
 dza_0  = dzam_0 - params.lm * dphi_0 * cos(phi_0);
+
+simout = sim("Simullink/nlmodel.slx");
+
+t = simout.state.Time; 
+x = simout.state.Data; 
+
+
