@@ -1,5 +1,14 @@
 clear; close all; clc;
-addpath Simullink/ plots/
+addpath Simullink/ plots/ functions/ data/
+
+T = @(params) [ 0,  1,   0, -params.lf,  0, -1,  0,  0;  % x1 = za - lf*phi - zf
+      0,  0,   0,   0,  0,  1,  0,  0;  % x2 = zf
+      1,  0, -params.lf,   0,  0,  0,  0,  0;  % x3 = dza - lf*dphi
+      0,  0,   0,   0,  1,  0,  0,  0;  % x4 = dzf
+      0,  1,   0,  params.lm,  0,  0,  0, -1;  % x5 = za + lm*phi - zm
+      0,  0,   0,   0,  0,  0,  0,  1;  % x6 = zm
+      1,  0,  params.lm,   0,  0,  0,  0,  0;  % x7 = dza + lm*dphi
+      0,  0,   0,   0,  0,  0,  1,  0]; % x8 = dzm
 
 params = struct();
 
@@ -29,36 +38,26 @@ params.cfr_base = 4060;
 
 params.cmr_base = 4060;
 
-x0 = [0.018 -0.011 0.012 0.015 -0.015 0.011 0.011 0.011]';
+x0 = [0.18 -0.11 0.12 0.15 -0.15 0.11 0.11 0.11]';
 
-dzf_0 = x0(4); 
-dzm_0 = x0(8); 
-
-% 2. Landing Gear Positions (mapped from states x2 and x6[cite: 3])
-zf_0 = x0(2); 
-zm_0 = x0(6); 
-
-% 3. Fuselage Position (za) and Pitch Angle (phi)
-% First, find the initial heights of the suspension junctions[cite: 3]
-zaf_0 = x0(1) + zf_0; 
-zam_0 = x0(5) + zm_0; 
-
-% Exact nonlinear geometric inverse (using asin)
-phi_0 = asin((zam_0 - zaf_0) / (params.lf + params.lm));
-za_0  = zam_0 - params.lm * sin(phi_0);
-
-% 4. Fuselage Velocity (dza) and Pitch Rate (dphi)
-% Extract junction velocities from states x3 and x7
-dzaf_0 = x0(3); 
-dzam_0 = x0(7); 
-
-% Exact nonlinear velocity inverse (dividing by cos(phi_0))
-dphi_0 = (dzam_0 - dzaf_0) / ((params.lf + params.lm) * cos(phi_0));
-dza_0  = dzam_0 - params.lm * dphi_0 * cos(phi_0);
+[za_0, phi_0, zf_0, zm_0, dza_0, dphi_0, dzf_0, dzm_0] = state2physical(x0,params);
 
 simout = sim("Simullink/nlmodel.slx");
-
 t = simout.state.Time; 
 x = simout.state.Data; 
 
+load("data/linSys.mat");
+A_sys = T(params) * linsys1.A / T(params);   
+B_sys = T(params) * linsys1.B;
+C_sys = eye(8);        
+D_sys = zeros(8,2);
 
+sysLinearized = ss(A_sys,B_sys,C_sys,D_sys);
+load("data/equilibrium.mat");
+eq = physical2state(8.3052e-05, 1.3885e-04, -1.3050e-04, 7.1839e-05,0,0,0,0,params);
+initial(sysLinearized,x0,t);
+
+[A,B,~] = buildLinear(params);
+sys13 = ss(A,B,eye(8),zeros(8,2));
+figure
+initial(sys13,x0,t)
