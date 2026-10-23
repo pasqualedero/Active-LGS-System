@@ -61,3 +61,19 @@ initial(sysLinearized,x0,t);
 sys13 = ss(A,B,eye(8),zeros(8,2));
 figure
 initial(sys13,x0,t)
+
+% Stability 
+eigs = eigs(A);
+
+if all(real(eigs) < 0)
+    disp('The linearized system is asymptotically stable.');
+else
+    disp('The linearized system is unstable.');
+end
+
+C = eye(8);
+D = zeros(8,2);
+
+control = Controllers(A,B,C,D);
+P = control.lyapStab;
+
