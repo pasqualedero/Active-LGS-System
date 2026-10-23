@@ -1,4 +1,4 @@
-function [A,B,D] = buildLinear(params)
+function [A,B,C,D] = buildLinear(params)
 %BUILDLINEAR Load the model derived in paper
 
 M    = params.M;
@@ -73,8 +73,8 @@ A = [ Af,  Afm;
 B = [ Bf; 
           Bm ];
 
-D = [ Df, zeros(4,1); 
-          zeros(4,1), Dm ];
+C = zeros(2,8); C(1,1) = 1; C(2,5) = 1;
 
+D = zeros(2,2);
 
 end

@@ -49,18 +49,18 @@ x = simout.state.Data;
 load("data/linSys.mat");
 A_sys = T(params) * linsys1.A / T(params);   
 B_sys = T(params) * linsys1.B;
-C_sys = eye(8);        
-D_sys = zeros(8,2);
+C_sys = linsys1.C / T(params);        
+D_sys = zeros(2,2);
 
 sysLinearized = ss(A_sys,B_sys,C_sys,D_sys);
 load("data/equilibrium.mat");
 eq = physical2state(8.3052e-05, 1.3885e-04, -1.3050e-04, 7.1839e-05,0,0,0,0,params);
-initial(sysLinearized,x0,t);
+[ylinearized,~,xlinearized] = initial(sysLinearized,x0,t);
 
-[A,B,~] = buildLinear(params);
-sys13 = ss(A,B,eye(8),zeros(8,2));
+[A,B,C,D] = buildLinear(params);
+sys = ss(A,B,C,D);
 figure
-initial(sys13,x0,t)
+[ylinear,~,xlinear] = initial(sys,x0,t);
 
 % Stability 
 eigs = eigs(A);
@@ -71,9 +71,14 @@ else
     disp('The linearized system is unstable.');
 end
 
-C = eye(8);
-D = zeros(8,2);
-
 control = Controllers(A,B,C,D);
 P = control.lyapStab;
 
+% Reachability and Controllability/ Observability and Detectability
+Wr = gram(sys,"c");
+Wo = gram(sys,"o");
+
+isdefined(Wr,"positive");
+isdefined(Wo,"positive");
+
+% Define noise 
