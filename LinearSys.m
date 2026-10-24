@@ -1,9 +1,10 @@
-classdef Controllers < handle
-    %CONTROLLERS H2, L1, Hinf
-    %   Synthesis of optimal controllers
+classdef LinearSys
+    %LINEARSYS Implements a linear system
+    %   Implements a linear system
 
     properties
-        A 
+        % nominal
+        A
         B
         C
         D
@@ -21,7 +22,7 @@ classdef Controllers < handle
 
     methods
         % constructor
-        function obj = Controllers(A,B,C,D)
+        function obj = LinearSys(A,B,C,D)
             obj.A = A;
             obj.B = B;
             obj.C = C;
@@ -47,16 +48,14 @@ classdef Controllers < handle
             n = obj.n; eps = obj.eps; A = obj.A;
             P = sdpvar(n, n, 'symmetric');
             constraints = [P >= eps*eye(n), A' * P + P * A <= -eye(n)*eps];
-            options = sdpsettings('solver','mosek');
-            sol = optimize(constraints, [], sdpsettings('verbose', 0));
+            options = sdpsettings('solver','mosek','verbose',0);
+            sol = optimize(constraints, [], options);
             if sol.problem == 0
                 P = value(P);
             else
                 error('Lyapunov inequality infeasible: %s', sol.info);
             end
         end
-
-
-        
+       
     end
 end

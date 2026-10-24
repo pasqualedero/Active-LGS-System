@@ -1,6 +1,5 @@
-function [A,B,C,D,Dw] = buildLinear(params)
+function [A,B,C,D,Dw,Cz,Bz] = buildLinear(params)
 %BUILDLINEAR Load the model derived in paper
-
 M    = params.M;
 Mf   = params.Mf;
 Mm   = params.Mm;
@@ -11,7 +10,6 @@ kaf  = params.kaf;
 kam  = params.kam;
 kfr  = params.kfr;
 kmr  = params.kmr;
-
 caf  = params.caf_base; 
 cam  = params.cam_base;
 cfr  = params.cfr_base;
@@ -26,53 +24,52 @@ a6 = 1 / M;
 a7 = lf / Iphi;
 a8 = lm / Iphi;
 
-
 Af = [ 0,             0,          1,             -1;
        0,             0,          0,              1;
       -a1*kaf,        0,         -a1*caf,         a1*caf;
        a4*kaf,       -a4*kfr,     a4*caf,        -a4*(caf + cfr) ];
-
+       
 Bf = [ 0,       0;
        0,       0;
        a1,      2*a2;
       -a4,      0 ];
-
+      
 Df = [ 0;
       -1;
        0;
        a4*cfr ];
-
+       
 Am = [ 0,             0,          1,             -1;
        0,             0,          0,              1;
       -2*a3*kam,      0,         -2*a3*cam,       2*a3*cam;
        a5*kam,       -a5*kmr,     a5*cam,        -a5*(cam + cmr) ];
-
+       
 Bm = [ 0,       0;
        0,       0;
        a2,      2*a3;
        0,      -a5 ];
-
+       
 Dm = [ 0;
       -1;
        0;
        a5*cmr ];
-
+       
 Afm = [ 0,           0,   0,           0;
         0,           0,   0,           0;
        -2*a2*kam,    0,  -2*a2*cam,    2*a2*cam;
         0,           0,   0,           0 ];
-
+        
 Amf = [ 0,           0,   0,           0;
         0,           0,   0,           0;
        -a2*kaf,      0,  -a2*caf,      a2*caf;
         0,           0,   0,           0 ];
 
 A = [ Af,  Afm; 
-          Amf, Am  ];
-
+      Amf, Am  ];
+      
 B = [ Bf; 
-          Bm ];
-
+      Bm ];
+      
 C = zeros(2,8); C(1,1) = 1; C(2,5) = 1;
 
 D = zeros(2,2);
@@ -81,13 +78,18 @@ Df = [ 0;
       -1;
        0;
        a4*cfr ];
-
+       
 Dm = [ 0;
       -1;
        0;
        a5*cmr ];
-
+       
 Dw = [ Df, zeros(4,1); 
-          zeros(4,1), Dm ];
+       zeros(4,1), Dm ];
 
+Cz = [ -a6*kaf, 0, -a6*caf,  a6*caf, -2*a6*kam, 0, -2*a6*cam, 2*a6*cam;
+        a7*kaf, 0,  a7*caf, -a7*caf, -2*a8*kam, 0, -2*a8*cam, 2*a8*cam ];
+
+Bz = [  a6, 2*a6;
+       -a7, 2*a8 ];
 end

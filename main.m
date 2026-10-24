@@ -1,5 +1,5 @@
 clear; close all; clc;
-addpath Simullink/ plots/ functions/ data/
+addpath Simullink/ plots/ functions/ data/ control/ constraints/
 
 T = @(params) [ 0,  1,   0, -params.lf,  0, -1,  0,  0;  % x1 = za - lf*phi - zf
       0,  0,   0,   0,  0,  1,  0,  0;  % x2 = zf
@@ -10,6 +10,7 @@ T = @(params) [ 0,  1,   0, -params.lf,  0, -1,  0,  0;  % x1 = za - lf*phi - zf
       1,  0,  params.lm,   0,  0,  0,  0,  0;  % x7 = dza + lm*dphi
       0,  0,   0,   0,  0,  0,  1,  0]; % x8 = dzm
 
+wu = 1e-3;
 params = struct();
 
 % Masses and Inertia
@@ -57,7 +58,7 @@ load("data/equilibrium.mat");
 eq = physical2state(8.3052e-05, 1.3885e-04, -1.3050e-04, 7.1839e-05,0,0,0,0,params);
 [ylinearized,~,xlinearized] = initial(sysLinearized,x0,t);
 
-[A,B,C,D,Dw] = buildLinear(params);
+[A,B,C,D,B2,C1,D12] = buildLinear(params);
 sys = ss(A,B,C,D);
 figure
 [ylinear,~,xlinear] = initial(sys,x0,t);
@@ -71,8 +72,8 @@ else
     disp('The linearized system is unstable.');
 end
 
-control = Controllers(A,B,C,D);
-P = control.lyapStab;
+system = LinearSys(A,B,C,D);
+P = system.lyapStab;
 
 % Reachability and Controllability/ Observability and Detectability
 Wr = gram(sys,"c");
@@ -82,7 +83,7 @@ isdefined(Wr,"positive");
 isdefined(Wo,"positive");
 
 % Define noise 
-disp('Noise matrix Dw');
+disp('Noise matrix');
 
 noise.A = 0.5;  % height of the runway bump
 noise.l = 2.5;  % length of the runway bump
@@ -92,3 +93,16 @@ noise.duration = noise.l / noise.V;
 noise.profile = zeros(length(t), 1);
 idx = (t >= 0) & (t <= noise.duration);
 noise.profile(idx) = (noise.A / 2) * (1 - cos((2 * pi * noise.V / noise.l) * t(idx)));
+
+% H inf
+matrices.A = A;
+matrices.B1 = B;
+matrices.B2 = B2;
+% Augmented performance output: z = [ddz_a; ddphi; wu*u_f; wu*u_m]
+matrices.C1  = [C1; zeros(2, 8)];
+matrices.D12 = [D12; wu * eye(2)];
+matrices.D11 = zeros(4, 2); 
+
+hinf = HinfConstr();
+contrHinf = Controllers(matrices,hinf,1);
+[K, minval] = contrHinf.solve
