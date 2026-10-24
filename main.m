@@ -57,7 +57,7 @@ load("data/equilibrium.mat");
 eq = physical2state(8.3052e-05, 1.3885e-04, -1.3050e-04, 7.1839e-05,0,0,0,0,params);
 [ylinearized,~,xlinearized] = initial(sysLinearized,x0,t);
 
-[A,B,C,D] = buildLinear(params);
+[A,B,C,D,Dw] = buildLinear(params);
 sys = ss(A,B,C,D);
 figure
 [ylinear,~,xlinear] = initial(sys,x0,t);
@@ -82,3 +82,13 @@ isdefined(Wr,"positive");
 isdefined(Wo,"positive");
 
 % Define noise 
+disp('Noise matrix Dw');
+
+noise.A = 0.5;  % height of the runway bump
+noise.l = 2.5;  % length of the runway bump
+noise.V = 20;   % taxiing velocity of the aircraft
+noise.duration = noise.l / noise.V;
+
+noise.profile = zeros(length(t), 1);
+idx = (t >= 0) & (t <= noise.duration);
+noise.profile(idx) = (noise.A / 2) * (1 - cos((2 * pi * noise.V / noise.l) * t(idx)));

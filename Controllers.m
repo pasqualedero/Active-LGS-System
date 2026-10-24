@@ -15,6 +15,8 @@ classdef Controllers < handle
 
     properties(Dependent=true,Access=protected)
         n
+        m
+        p
     end
 
     methods
@@ -31,6 +33,15 @@ classdef Controllers < handle
             value = size(obj.A, 1);
         end
 
+        function value = get.m(obj)
+            value = size(obj.B, 2);
+        end
+
+        function value = get.p(obj)
+            value = size(obj.C, 1);
+        end
+
+        % methods
         function P = lyapStab(obj)
             clear("yalmip")
             n = obj.n; eps = obj.eps; A = obj.A;
@@ -44,6 +55,8 @@ classdef Controllers < handle
                 error('Lyapunov inequality infeasible: %s', sol.info);
             end
         end
+
+
         
     end
 end
