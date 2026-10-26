@@ -22,8 +22,9 @@ classdef Controllers < handle
             n = length(obj.matrices.A);
             m = size(obj.matrices.B1, 2);
 
-            vars.X = sdpvar(n, n, 'symmetric');
-            vars.Y = sdpvar(m, n, 'full');
+            vars.X = sdpvar(n,n,'symmetric');
+            vars.Y = sdpvar(m,n,'full');
+           
             vars.gamma = sdpvar(1);
 
             [lmis, objective] = obj.con.build(obj.matrices, vars);

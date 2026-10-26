@@ -3,7 +3,7 @@ classdef(Abstract=true) Constraints < handle
     %   Abstract constraints
 
     properties(Constant)
-        tol = 1e-5;
+        tol = 1e-1;
     end
 
     methods (Abstract)

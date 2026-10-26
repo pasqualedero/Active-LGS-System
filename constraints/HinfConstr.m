@@ -19,7 +19,7 @@ classdef HinfConstr < Constraints
             B2', -gamma * eye(size(B2,2)), D11'; ...
             (C1*X + D12*Y), D11, -gamma * eye(size(D11,1)) ];
 
-            lmis = [constr <= -obj.tol*eye(length(constr)); X >= obj.tol*eye(length(X))];
+            lmis = [constr <= -obj.tol*eye(length(constr)); X >= obj.tol * eye(length(X))];
             objective = gamma;
                
         end

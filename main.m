@@ -10,7 +10,6 @@ T = @(params) [ 0,  1,   0, -params.lf,  0, -1,  0,  0;  % x1 = za - lf*phi - zf
       1,  0,  params.lm,   0,  0,  0,  0,  0;  % x7 = dza + lm*dphi
       0,  0,   0,   0,  0,  0,  1,  0]; % x8 = dzm
 
-wu = 1e-3;
 params = struct();
 
 % Masses and Inertia
@@ -60,7 +59,6 @@ eq = physical2state(8.3052e-05, 1.3885e-04, -1.3050e-04, 7.1839e-05,0,0,0,0,para
 
 [A,B,C,D,B2,C1,D12] = buildLinear(params);
 sys = ss(A,B,C,D);
-figure
 [ylinear,~,xlinear] = initial(sys,x0,t);
 
 % Stability 
@@ -95,14 +93,38 @@ idx = (t >= 0) & (t <= noise.duration);
 noise.profile(idx) = (noise.A / 2) * (1 - cos((2 * pi * noise.V / noise.l) * t(idx)));
 
 % H inf
+umax = 200;         % Control penalty limit
+xmax = 0.1;        % Tire deflection penalty limit 
+ddza_max = 5.87;  % Max vertical acceleration in m/s^2
+ddphi_max = 2.85; % Max pitching acceleration in rad/s^2
+
+W_za = 1 / ddza_max;  
+W_phi = 1 / ddphi_max; 
+Wz = diag([W_za, W_phi]);
+
 matrices.A = A;
 matrices.B1 = B;
 matrices.B2 = B2;
-% Augmented performance output: z = [ddz_a; ddphi; wu*u_f; wu*u_m]
-matrices.C1  = [C1; zeros(2, 8)];
-matrices.D12 = [D12; wu * eye(2)];
-matrices.D11 = zeros(4, 2); 
+
+% Augment C1 with tire penalties, and D12 with control penalties
+matrices.C1  = [Wz*C1; 
+                0, 1/xmax, 0, 0, 0, 0,      0, 0; 
+                0, 0,      0, 0, 0, 1/xmax, 0, 0; 
+                zeros(2, 8)];
+                
+matrices.D12 = [Wz*D12; 
+                0, 0; 
+                0, 0; 
+                1/umax, 0; 
+                0, 1/umax];
+                
+matrices.D11 = zeros(6, 2); % Matches the 6 rows of the new C1
+
+
 
 hinf = HinfConstr();
-contrHinf = Controllers(matrices,hinf,1);
+contrHinf = Controllers(matrices, hinf, 1);
 [K, minval] = contrHinf.solve
+
+
+
