@@ -135,11 +135,16 @@ contrHinf = Controllers(matrices, hinf, 1);
 
 
 % H2 control
-
-matrices.C2 = matrices.C1;
-matrices.D22 = matrices.D12;
+matrices.C2 = [W_acc * matrices.C1(1:2,1:8);
+                       zeros(2,8)];
+matrices.D22 = [W_acc * matrices.D12(1:2,1:2)
+                        0.0003/umax  0;
+                        0       0.0003/umax];
 
 h2 = H2Constr();
 contrH2 = Controllers(matrices, h2, 1);
 [Kh2, minvalH2] = contrH2.solve
 
+sys_cl_h2 = ss(A + B*Kh2, B2, matrices.C2 + matrices.D22*Kh2, zeros(2+2,2));
+h2_theoretic = norm(sys_cl,2)
+eig(sys_cl_h2)

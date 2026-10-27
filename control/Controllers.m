@@ -24,7 +24,7 @@ classdef Controllers < handle
 
             vars.X = sdpvar(n,n,'symmetric');
             vars.Y = sdpvar(m,n,'full');
-            vars.Q = sdpvar(12,12,'symmetric');
+            vars.Q = sdpvar(2+2,2+2,'symmetric');
            
             vars.gamma = sdpvar(1);
             vars.rho = sdpvar(1);
