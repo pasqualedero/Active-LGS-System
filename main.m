@@ -1,6 +1,7 @@
 clear; close all; clc;
 addpath Simullink/ plots/ functions/ data/ control/ constraints/
 
+% [za_dot, za, phi_dot, phi, zf_dot, zf, zm_dot, zm]
 T = @(params) [ 0,  1,   0, -params.lf,  0, -1,  0,  0;  % x1 = za - lf*phi - zf
       0,  0,   0,   0,  0,  1,  0,  0;  % x2 = zf
       1,  0, -params.lf,   0,  0,  0,  0,  0;  % x3 = dza - lf*dphi
@@ -9,6 +10,10 @@ T = @(params) [ 0,  1,   0, -params.lf,  0, -1,  0,  0;  % x1 = za - lf*phi - zf
       0,  0,   0,   0,  0,  0,  0,  1;  % x6 = zm
       1,  0,  params.lm,   0,  0,  0,  0,  0;  % x7 = dza + lm*dphi
       0,  0,   0,   0,  0,  0,  1,  0]; % x8 = dzm
+
+% init. gains
+Kinf = zeros(2,8);
+
 
 params = struct();
 
@@ -29,16 +34,18 @@ params.kfr   = 1590000;
 params.kmr   = 1590000;    
 
 params.caf_base = 143000; 
-params.caf_amp  = 20000;
-params.caf_freq = 0.4;
-
 params.cam_base = 625000;
-
 params.cfr_base = 4060;
-
 params.cmr_base = 4060;
 
-x0 = [0.18 -0.11 0.12 0.15 -0.15 0.11 0.11 0.11]';
+% Noise
+noise.A = 0.5;  % height of the runway bump
+noise.l = 2.5;  % length of the runway bump
+noise.V = 20;   % taxiing velocity of the aircraft
+noise.duration = noise.l / noise.V;
+
+% init state
+x0 = [0.18 -0.11 0.12 0.15 -0.15 0.11 0.11 0.11]' * 10^-1;
 
 [za_0, phi_0, zf_0, zm_0, dza_0, dphi_0, dzf_0, dzm_0] = state2physical(x0,params);
 
@@ -80,51 +87,46 @@ Wo = gram(sys,"o");
 isdefined(Wr,"positive");
 isdefined(Wo,"positive");
 
-% Define noise 
-disp('Noise matrix');
+%%
+% Constraints, Hinf control
+az_max     = 80.0;    
+aphi_max   = 40.0;    
+x_strut_max = 0.04;   
+v_fuse_max  = 0.15;   
+xmax       = 0.10;    
+umax       = 60e3;   
+v_wheel_max = 0.80;
 
-noise.A = 0.5;  % height of the runway bump
-noise.l = 2.5;  % length of the runway bump
-noise.V = 20;   % taxiing velocity of the aircraft
-noise.duration = noise.l / noise.V;
+W_acc = diag([1/az_max, 1/aphi_max]);
 
-noise.profile = zeros(length(t), 1);
-idx = (t >= 0) & (t <= noise.duration);
-noise.profile(idx) = (noise.A / 2) * (1 - cos((2 * pi * noise.V / noise.l) * t(idx)));
+C1_norm  = [W_acc * C1; 
+            1/x_strut_max, 0, 0, 0, 0, 0, 0, 0;   % Penalize front strut bounce x1
+            0, 0, 0, 0, 1/x_strut_max, 0, 0, 0;   % Penalize main strut bounce x5
+            0, 0, 1/v_fuse_max, 0, 0, 0, 0, 0;    % Penalize front fuselage vel x3
+            0, 0, 0, 0, 0, 0, 1/v_fuse_max, 0;    % Penalize main fuselage vel x7
+            0, 1/xmax, 0, 0, 0, 0,      0, 0;     % Tire deflection x2
+            0, 0,      0, 0, 0, 1/xmax, 0, 0;     % Tire deflection x6
+            0, 0, 0, 1/v_wheel_max, 0, 0, 0, 0;   % x4: Front wheel velocity (STOPS THE +7 SPIKE!)
+            0, 0, 0, 0, 0, 0, 0, 1/v_wheel_max;
+            zeros(2, 8)];                         % Actuator effort u1, u2
 
-% H inf
-umax = 200;         % Control penalty limit
-xmax = 0.1;        % Tire deflection penalty limit 
-ddza_max = 5.87;  % Max vertical acceleration in m/s^2
-ddphi_max = 2.85; % Max pitching acceleration in rad/s^2
+D11_norm = zeros(12,2);
 
-W_za = 1 / ddza_max;  
-W_phi = 1 / ddphi_max; 
-Wz = diag([W_za, W_phi]);
+D12_norm = [W_acc * D12; 
+            zeros(8, 2); 
+            2/umax, 0; 
+            0, 2/umax];
 
-matrices.A = A;
-matrices.B1 = B;
-matrices.B2 = B2;
+beta = 1; 
 
-% Augment C1 with tire penalties, and D12 with control penalties
-matrices.C1  = [Wz*C1; 
-                0, 1/xmax, 0, 0, 0, 0,      0, 0; 
-                0, 0,      0, 0, 0, 1/xmax, 0, 0; 
-                zeros(2, 8)];
-                
-matrices.D12 = [Wz*D12; 
-                0, 0; 
-                0, 0; 
-                1/umax, 0; 
-                0, 1/umax];
-                
-matrices.D11 = zeros(6, 2); % Matches the 6 rows of the new C1
-
-
+matrices.A   = A;
+matrices.B1  = B;
+matrices.B2  = B2 / beta;
+matrices.C1  = C1_norm * beta;
+matrices.D11 = D11_norm;
+matrices.D12 = D12_norm * beta;
 
 hinf = HinfConstr();
 contrHinf = Controllers(matrices, hinf, 1);
-[K, minval] = contrHinf.solve
-
-
+[Kinf, minval] = contrHinf.solve
 
