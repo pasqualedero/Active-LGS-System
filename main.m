@@ -130,3 +130,16 @@ hinf = HinfConstr();
 contrHinf = Controllers(matrices, hinf, 1);
 [Kinf, minval] = contrHinf.solve
 
+
+
+
+
+% H2 control
+
+matrices.C2 = matrices.C1;
+matrices.D22 = matrices.D12;
+
+h2 = H2Constr();
+contrH2 = Controllers(matrices, h2, 1);
+[Kh2, minvalH2] = contrH2.solve
+

@@ -4,7 +4,7 @@ classdef Controllers < handle
 
     properties
         matrices
-        con HinfConstr
+        con 
         weights
 
     end
@@ -24,18 +24,27 @@ classdef Controllers < handle
 
             vars.X = sdpvar(n,n,'symmetric');
             vars.Y = sdpvar(m,n,'full');
+            vars.Q = sdpvar(12,12,'symmetric');
            
             vars.gamma = sdpvar(1);
+            vars.rho = sdpvar(1);
 
             [lmis, objective] = obj.con.build(obj.matrices, vars);
 
             options = sdpsettings('solver', 'mosek', 'verbose', 0);
             sol = optimize(lmis, objective, options);
+            
             if sol.problem ~= 0
                 error('Controller optimization failed: %s', sol.info);
             end
+            
             K = value(vars.Y) / value(vars.X);
             minval = value(objective);
+
+            if isa(obj.con, 'H2Constr')
+                minval = sqrt(minval);
+            end
+
         end
     end
 end
