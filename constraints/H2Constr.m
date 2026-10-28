@@ -30,10 +30,10 @@ classdef H2Constr < Constraints
 
 
             lmis = [constr1 <= -obj.tol*eye(2+n); 
-                    constr2 >= obj.tol * eye(n+2+2); 
+                    constr2 >= obj.tol * eye(n+4); 
                     constr3 <= -obj.tol;
                     X >= obj.tol * eye(n);
-                    Q >= obj.tol * eye(2+2);
+                    Q >= obj.tol * eye(4);
                     ];
             
             objective = rho;

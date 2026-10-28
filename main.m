@@ -11,8 +11,9 @@ T = @(params) [ 0,  1,   0, -params.lf,  0, -1,  0,  0;  % x1 = za - lf*phi - zf
       1,  0,  params.lm,   0,  0,  0,  0,  0;  % x7 = dza + lm*dphi
       0,  0,   0,   0,  0,  0,  1,  0]; % x8 = dzm
 
-% init. gains
-Kinf = zeros(2,8);
+% init. gains and switch
+K = zeros(2,8);
+activate_noise = 0;
 
 
 params = struct();
@@ -49,9 +50,10 @@ x0 = [0.18 -0.11 0.12 0.15 -0.15 0.11 0.11 0.11]' * 10^-1;
 
 [za_0, phi_0, zf_0, zm_0, dza_0, dphi_0, dzf_0, dzm_0] = state2physical(x0,params);
 
-simout = sim("Simullink/nlmodel.slx");
-t = simout.state.Time; 
-x = simout.state.Data; 
+sim_freeResp = sim("Simullink/nlmodel.slx");
+t = sim_freeResp.state.Time; 
+x_free = sim_freeResp.state.Data; 
+y_free = sim_freeResp.output.Data;
 
 load("data/linSys.mat");
 A_sys = T(params) * linsys1.A / T(params);   
@@ -87,10 +89,16 @@ Wo = gram(sys,"o");
 isdefined(Wr,"positive");
 isdefined(Wo,"positive");
 
+% Free response with noise
+activate_noise = 1; 
+sim_freeNoise = sim("Simullink/nlmodel.slx");
+x_free_noise = sim_freeNoise.state.Data;
+y_free_noise = sim_freeNoise.output.Data;
+
 %%
 % Constraints, Hinf control
-az_max     = 80.0;    
-aphi_max   = 40.0;    
+az_max     = 8.0;    
+aphi_max   = 4.0;    
 x_strut_max = 0.04;   
 v_fuse_max  = 0.15;   
 xmax       = 0.10;    
@@ -101,13 +109,13 @@ W_acc = diag([1/az_max, 1/aphi_max]);
 
 C1_norm  = [W_acc * C1; 
             1/x_strut_max, 0, 0, 0, 0, 0, 0, 0;   % Penalize front strut bounce x1
-            0, 0, 0, 0, 1/x_strut_max, 0, 0, 0;   % Penalize main strut bounce x5
+            0, 0, 0, 0, 2/x_strut_max, 0, 0, 0;   % Penalize main strut bounce x5
             0, 0, 1/v_fuse_max, 0, 0, 0, 0, 0;    % Penalize front fuselage vel x3
             0, 0, 0, 0, 0, 0, 1/v_fuse_max, 0;    % Penalize main fuselage vel x7
             0, 1/xmax, 0, 0, 0, 0,      0, 0;     % Tire deflection x2
             0, 0,      0, 0, 0, 1/xmax, 0, 0;     % Tire deflection x6
-            0, 0, 0, 1/v_wheel_max, 0, 0, 0, 0;   % x4: Front wheel velocity (STOPS THE +7 SPIKE!)
-            0, 0, 0, 0, 0, 0, 0, 1/v_wheel_max;
+            0, 0, 0, 5/v_wheel_max, 0, 0, 0, 0;   % x4: Front wheel velocity (STOPS THE +7 SPIKE!)
+            0, 0, 0, 0, 0, 0, 0, 5/v_wheel_max;
             zeros(2, 8)];                         % Actuator effort u1, u2
 
 D11_norm = zeros(12,2);
@@ -130,21 +138,40 @@ hinf = HinfConstr();
 contrHinf = Controllers(matrices, hinf, 1);
 [Kinf, minval] = contrHinf.solve
 
+sys_cl_hinf = ss(A + B*Kinf, B2, matrices.C1 + matrices.D12*Kinf, zeros(12,2));
 
 
-
+K = Kinf;
+sim_hinf = sim("Simullink/nlmodel.slx");
+x_hinf = sim_hinf.state.Data;
+y_hinf = sim_hinf.output.Data;
+u_hinf = sim_hinf.input.Data;
 
 % H2 control
 matrices.C2 = [W_acc * matrices.C1(1:2,1:8);
                        zeros(2,8)];
 matrices.D22 = [W_acc * matrices.D12(1:2,1:2)
-                        0.0003/umax  0;
-                        0       0.0003/umax];
+                        0.03/umax  0;
+                        0       0.03/umax];
+
+
+
+% matrices.C2 = matrices.C1;
+% matrices.D22 = matrices.D12;
 
 h2 = H2Constr();
 contrH2 = Controllers(matrices, h2, 1);
 [Kh2, minvalH2] = contrH2.solve
 
-sys_cl_h2 = ss(A + B*Kh2, B2, matrices.C2 + matrices.D22*Kh2, zeros(2+2,2));
-h2_theoretic = norm(sys_cl,2)
+sys_cl_h2 = ss(A + B*Kh2, B2, matrices.C2 + matrices.D22*Kh2, zeros(4,2));
+h2_theoretic = norm(sys_cl_h2,2)
 eig(sys_cl_h2)
+
+K = Kh2;
+sim_h2 = sim("Simullink/nlmodel.slx");
+x_h2 = sim_h2.state.Data;
+y_h2 = sim_h2.output.Data;
+u_h2 = sim_h2.input.Data;
+
+
+
