@@ -46,7 +46,8 @@ noise.V = 20;   % taxiing velocity of the aircraft
 noise.duration = noise.l / noise.V;
 
 % init state
-x0 = [0.18 -0.11 0.12 0.15 -0.15 0.11 0.11 0.11]' * 10^-1;
+x0 = [0.18 -0.11 0.12 0.15 -0.15 0.11 0.11 0.11]' * 10^-1; % set x0=0 for controllers hyp.
+x0 = zeros(8,1);
 
 [za_0, phi_0, zf_0, zm_0, dza_0, dphi_0, dzf_0, dzm_0] = state2physical(x0,params);
 
@@ -96,49 +97,44 @@ x_free_noise = sim_freeNoise.state.Data;
 y_free_noise = sim_freeNoise.output.Data;
 
 %%
-% Constraints, Hinf control
-az_max     = 8.0;    
-aphi_max   = 4.0;    
+% Constraints
+
+az_max     = 2;    
+aphi_max   = 0.8;    
 x_strut_max = 0.04;   
 v_fuse_max  = 0.15;   
-xmax       = 0.10;    
-umax       = 60e3;   
+tire_defl_max = 0.015;    
+umax       = 120e3;   
 v_wheel_max = 0.80;
 
-W_acc = diag([1/az_max, 1/aphi_max]);
+W_acc = diag([3/az_max, 1/aphi_max]);
 
 C1_norm  = [W_acc * C1; 
-            1/x_strut_max, 0, 0, 0, 0, 0, 0, 0;   % Penalize front strut bounce x1
-            0, 0, 0, 0, 2/x_strut_max, 0, 0, 0;   % Penalize main strut bounce x5
-            0, 0, 1/v_fuse_max, 0, 0, 0, 0, 0;    % Penalize front fuselage vel x3
-            0, 0, 0, 0, 0, 0, 1/v_fuse_max, 0;    % Penalize main fuselage vel x7
-            0, 1/xmax, 0, 0, 0, 0,      0, 0;     % Tire deflection x2
-            0, 0,      0, 0, 0, 1/xmax, 0, 0;     % Tire deflection x6
-            0, 0, 0, 5/v_wheel_max, 0, 0, 0, 0;   % x4: Front wheel velocity (STOPS THE +7 SPIKE!)
-            0, 0, 0, 0, 0, 0, 0, 5/v_wheel_max;
-            zeros(2, 8)];                         % Actuator effort u1, u2
+            zeros(2, 8)];                        
 
-D11_norm = zeros(12,2);
+D11_norm = zeros(4, 2);
 
-D12_norm = [W_acc * D12; 
-            zeros(8, 2); 
-            2/umax, 0; 
-            0, 2/umax];
+D12_norm = [W_acc * D12;             
+            2/umax, 0;                           
+            0, 2.5/umax];
 
 beta = 1; 
 
-matrices.A   = A;
-matrices.B1  = B;
-matrices.B2  = B2 / beta;
-matrices.C1  = C1_norm * beta;
-matrices.D11 = D11_norm;
-matrices.D12 = D12_norm * beta;
+
+%Hinf control
+
+matrices_hinf.A   = A;
+matrices_hinf.B1  = B;
+matrices_hinf.B2  = B2 / beta;
+matrices_hinf.C  = C1_norm * beta;
+matrices_hinf.D2 = D11_norm;
+matrices_hinf.D1 = D12_norm * beta;
 
 hinf = HinfConstr();
-contrHinf = Controllers(matrices, hinf, 1);
+contrHinf = Controllers(matrices_hinf, hinf, 1);
 [Kinf, minval] = contrHinf.solve
 
-sys_cl_hinf = ss(A + B*Kinf, B2, matrices.C1 + matrices.D12*Kinf, zeros(12,2));
+sys_cl_hinf = ss(A + B*Kinf, B2, matrices_hinf.C + matrices_hinf.D1*Kinf, matrices_hinf.D2);
 
 
 K = Kinf;
@@ -148,22 +144,22 @@ y_hinf = sim_hinf.output.Data;
 u_hinf = sim_hinf.input.Data;
 
 % H2 control
-matrices.C2 = [W_acc * matrices.C1(1:2,1:8);
+matrices_h2.A  = A;
+matrices_h2.B1  = B;
+matrices_h2.B2  = B2 / beta;
+matrices_h2.C = [matrices_hinf.C(1:2,1:8);
                        zeros(2,8)];
-matrices.D22 = [W_acc * matrices.D12(1:2,1:2)
-                        0.03/umax  0;
-                        0       0.03/umax];
-
-
-
-% matrices.C2 = matrices.C1;
-% matrices.D22 = matrices.D12;
+matrices_h2.D1 = [matrices_hinf.D1(1:2,1:2)
+                        1/umax  0;
+                        0       1/umax];
+matrices_h2.D2 = zeros(size(matrices_h2.C,1), size(matrices_h2.B2,2));
+                        
 
 h2 = H2Constr();
-contrH2 = Controllers(matrices, h2, 1);
+contrH2 = Controllers(matrices_h2, h2, 1);
 [Kh2, minvalH2] = contrH2.solve
 
-sys_cl_h2 = ss(A + B*Kh2, B2, matrices.C2 + matrices.D22*Kh2, zeros(4,2));
+sys_cl_h2 = ss(A + B*Kh2, B2, matrices_h2.C + matrices_h2.D1*Kh2, matrices_h2.D2);
 h2_theoretic = norm(sys_cl_h2,2)
 eig(sys_cl_h2)
 
@@ -174,4 +170,30 @@ y_h2 = sim_h2.output.Data;
 u_h2 = sim_h2.input.Data;
 
 
+
+%%
+
+% L1 control
+matrices_l1.A  = A;
+matrices_l1.B1  = B;
+matrices_l1.B2  = B2 / beta;
+matrices_l1.C = [matrices_hinf.C(1:2,1:8);
+                       zeros(2,8)] * beta;
+matrices_l1.D1 = [matrices_hinf.D1(1:2,1:2)
+                        7/umax  0;
+                        0       4/umax] *beta;
+matrices_l1.D2 = zeros(size(matrices_h2.C,1), size(matrices_h2.B2,2));
+
+l1 = L1Constr();
+contrL1 = Controllers(matrices_l1, l1, 1);
+[Kl1, minvalL1] = contrL1.solve
+
+sys_cl_l1 = ss(A + B*Kl1, B2, matrices_l1.C + matrices_l1.D1*Kl1, matrices_l1.D2);
+eig(sys_cl_l1)
+
+K = Kl1;
+sim_l1 = sim("Simullink/nlmodel.slx");
+x_l1 = sim_l1.state.Data;
+y_l1 = sim_l1.output.Data;
+u_l1 = sim_l1.input.Data;
 

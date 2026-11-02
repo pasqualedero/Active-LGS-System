@@ -11,9 +11,9 @@ classdef HinfConstr < Constraints
             A = matrices.A;
             B1 = matrices.B1;
             B2 = matrices.B2;
-            C1 = matrices.C1;
-            D11 = matrices.D11;
-            D12 = matrices.D12;
+            C1 = matrices.C;
+            D11 = matrices.D2;
+            D12 = matrices.D1;
 
             constr = [ (A*X + B1*Y) + (A*X + B1*Y)', B2, (C1*X + D12*Y)'; ...
             B2', -gamma * eye(size(B2,2)), D11'; ...

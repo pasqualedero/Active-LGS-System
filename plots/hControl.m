@@ -1,3 +1,4 @@
+close all
 %% Plot Comparison of States: Open-Loop (Noise) vs. H-infinity vs. H2
 figure('Name', 'Aircraft Active Suspension - State Trajectories', ...
        'Color', 'w', 'Position', [100, 50, 1100, 850]);
@@ -6,6 +7,7 @@ figure('Name', 'Aircraft Active Suspension - State Trajectories', ...
 t_free = sim_freeNoise.state.Time;
 t_hinf = sim_hinf.state.Time;
 t_h2   = sim_h2.state.Time;
+t_l1   = sim_l1.state.Time;
 
 % State descriptions and units based on system coordinates
 state_labels = {
@@ -23,6 +25,7 @@ state_labels = {
 color_free = [0.45, 0.45, 0.45]; % Gray (dashed)
 color_hinf = [0.85, 0.33, 0.10]; % Red/Orange
 color_h2   = [0.00, 0.45, 0.74]; % Blue
+color_l1   = [0.00, 0.5,    0.072];
 
 for i = 1:8
     subplot(4, 2, i);
@@ -31,6 +34,7 @@ for i = 1:8
     p1 = plot(t_free, x_free_noise(:, i), '--', 'Color', color_free, 'LineWidth', 1.0);
     p2 = plot(t_hinf, x_hinf(:, i),       '-',  'Color', color_hinf, 'LineWidth', 1.1);
     p3 = plot(t_h2,   x_h2(:, i),         '-',  'Color', color_h2,   'LineWidth', 1.1);
+    p4 = plot(t_l1,   x_l1(:, i),         '-',  'Color', color_l1,   'LineWidth', 1.1);
     
     ylabel(state_labels{i, 2}, 'FontWeight', 'bold');
     title(state_labels{i, 1}, 'FontSize', 9, 'FontWeight', 'bold');
@@ -44,7 +48,7 @@ for i = 1:8
     
     % Shared legend on the first subplot
     if i == 1
-        legend([p1, p2, p3], {'Open-Loop (Noise)', 'H_\infty Control', 'H_2 Control'}, ...
+        legend([p1, p2, p3, p4], {'Open-Loop (Noise)', 'H_\infty Control', 'H_2 Control', 'L_1 Control'}, ...
                'Location', 'northeast', 'FontSize', 8);
     end
     
@@ -73,7 +77,9 @@ t_h2   = sim_h2.state.Time;
 % State descriptions and units based on system coordinates
 out_labels = {
     'y_1: acc. of fuselage', '[m/s^2]';
-    'y_2: angular acc. of fuselage','[m/s^2]'
+    'y_2: angular acc. of fuselage','[rad/s^2]';
+    'y_3: vertical displacement of fuselage','[m]';
+    'y_3: angular pos. of fuselage','[rad]'
 };
 
 % Line specifications
@@ -81,13 +87,15 @@ color_free = [0.45, 0.45, 0.45]; % Gray (dashed)
 color_hinf = [0.85, 0.33, 0.10]; % Red/Orange
 color_h2   = [0.00, 0.45, 0.74]; % Blue
 
-for i = 1:2
-    subplot(2, 1, i);
+for i = 1:4
+    subplot(4, 1, i);
     hold on;
     
     p1 = plot(t_free, y_free_noise(:, i), '--', 'Color', color_free, 'LineWidth', 1.0);
     p2 = plot(t_hinf, y_hinf(:, i),       '-',  'Color', color_hinf, 'LineWidth', 1.1);
     p3 = plot(t_h2,   y_h2(:, i),         '-',  'Color', color_h2,   'LineWidth', 1.1);
+    p4 = plot(t_h2,   y_l1(:, i),         '-',  'Color', color_l1,   'LineWidth', 1.1);
+    
     
     ylabel(out_labels{i, 2}, 'FontWeight', 'bold');
     title(out_labels{i, 1}, 'FontSize', 9, 'FontWeight', 'bold');
@@ -101,7 +109,7 @@ for i = 1:2
     
     % Shared legend on the first subplot
     if i == 1
-        legend([p1, p2, p3], {'Open-Loop (Noise)', 'H_\infty Control', 'H_2 Control'}, ...
+        legend([p1, p2, p3, p4], {'Open-Loop (Noise)', 'H_\infty Control', 'H_2 Control','L_1 Control'}, ...
                'Location', 'northeast', 'FontSize', 8);
     end
     
@@ -135,6 +143,7 @@ for i = 1:2
     
     p2 = plot(t_hinf, u_hinf(:, i),       '-',  'Color', color_hinf, 'LineWidth', 1.1);
     p3 = plot(t_h2,   u_h2(:, i),         '-',  'Color', color_h2,   'LineWidth', 1.1);
+    p4 = plot(t_h2,   u_l1(:, i),         '-',  'Color', color_l1,   'LineWidth', 1.1);
     
     ylabel(out_labels{i, 2}, 'FontWeight', 'bold');
     title(out_labels{i, 1}, 'FontSize', 9, 'FontWeight', 'bold');
@@ -148,7 +157,7 @@ for i = 1:2
     
     % Shared legend on the first subplot
     if i == 1
-        legend([p2, p3], {'H_\infty Control', 'H_2 Control'}, ...
+        legend([p2, p3, p4], {'H_\infty Control', 'H_2 Control', 'L_1 Control'}, ...
                'Location', 'northeast', 'FontSize', 8);
     end
     
