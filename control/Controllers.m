@@ -4,8 +4,8 @@ classdef Controllers < handle
 
     properties
         matrices
-        con 
-        weights
+        con      % list of constraints
+        weights  % list of weights
 
     end
 
@@ -33,18 +33,25 @@ classdef Controllers < handle
             vars.rho = sdpvar(1);
             vars.mu = sdpvar(1);
             vars.psi = sdpvar(1);
-                
-            [lmis, objective] = obj.con.build(obj.matrices, vars);
 
+            lmis = [];
+            objectives = 0;
+
+            for i = 1 : length(obj.con)
+                [lmi, objective] = obj.con(i).build(obj.matrices, vars);
+                lmis = [lmis,lmi];
+                objectives = objectives + obj.weights(i) * objective;
+            end
+                
             options = sdpsettings('solver', 'mosek', 'verbose', 0);
-            sol = optimize(lmis, objective, options);
+            sol = optimize(lmis, objectives, options);
             
             if sol.problem ~= 0
                 error('Controller optimization failed: %s', sol.info);
             end
             
             K = value(vars.Y) / value(vars.X);
-            minval = value(objective);
+            minval = value(objectives);
 
             if isa(obj.con, 'H2Constr')
                 minval = sqrt(minval);

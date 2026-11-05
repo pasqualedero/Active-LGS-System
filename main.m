@@ -1,5 +1,5 @@
 clear; close all; clc;
-addpath Simullink/ plots/ functions/ data/ control/ constraints/
+addpath Simullink/ plots/ functions/ data/ control/ constraints/ constraints/geomConstr/ constraints/lmiPlotter/
 
 % [za_dot, za, phi_dot, phi, zf_dot, zf, zm_dot, zm]
 T = @(params) [ 0,  1,   0, -params.lf,  0, -1,  0,  0;  % x1 = za - lf*phi - zf
