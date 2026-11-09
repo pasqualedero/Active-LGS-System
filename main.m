@@ -197,3 +197,22 @@ x_l1 = sim_l1.state.Data;
 y_l1 = sim_l1.output.Data;
 u_l1 = sim_l1.input.Data;
 
+
+%% Multi-obj
+
+% Hinf + Rstab
+circle = Circle(40,0);
+cone = Cone(pi/12);
+sp = SemiPlane(10);
+
+% Multi-objective controller synthesis
+reg = Region([circle,cone,sp]);
+contrMulti = Controllers(matrices_hinf, [hinf,reg], [1,0]);
+[Kmulti, minvalMulti] = contrMulti.solve
+
+K = Kmulti;
+sim_hinf_r = sim("Simullink/nlmodel.slx");
+x_hinf_r = sim_hinf_r.state.Data;
+y_hinf_r = sim_hinf_r.output.Data;
+u_hinf_r = sim_hinf_r.input.Data;
+

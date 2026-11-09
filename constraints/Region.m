@@ -29,7 +29,7 @@ classdef Region < Constraints
 
             cl = A*X + B1*Y;
 
-            lmis = [kron(obj.L,X) + kron(obj.M,cl) + kron(obj.M',cl') <= -obj.tol * eye(length(obj.L))];
+            lmis = [kron(obj.L,X) + kron(obj.M,cl) + kron(obj.M',cl') <= -obj.tol * eye(length(obj.L)*length(X))];
 
             objective = 0;
                

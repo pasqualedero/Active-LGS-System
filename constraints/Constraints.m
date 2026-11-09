@@ -1,4 +1,4 @@
-classdef(Abstract=true) Constraints < handle
+classdef(Abstract=true) Constraints < matlab.mixin.Heterogeneous & handle
     %CONSTRAINTS Abstract constraints
     %   Abstract constraints
 
