@@ -107,28 +107,20 @@ tire_defl_max = 0.015;
 umax       = 120e3;   
 v_wheel_max = 0.80;
 
-W_acc = diag([3/az_max, 1/aphi_max]);
-
-C1_norm  = [W_acc * C1; 
-            zeros(2, 8)];                        
-
-D11_norm = zeros(4, 2);
-
-D12_norm = [W_acc * D12;             
-            2/umax, 0;                           
-            0, 2.5/umax];
 
 beta = 1; 
 
+W = @(w1,w2) diag([w1/az_max, w2/aphi_max]);
+C = @(W) [W * C1; zeros(2, 8)];
+D = @(W,w1,w2) [W * D12; w1/umax, 0; 0, w2/umax];
+matrices = @(C,D) struct('A',A,'B1',B,'B2',B2,'C',C,'D2',zeros(size(C,1),size(B2,2)),'D1',D);
+
 
 %Hinf control
-
-matrices_hinf.A   = A;
-matrices_hinf.B1  = B;
-matrices_hinf.B2  = B2 / beta;
-matrices_hinf.C  = C1_norm * beta;
-matrices_hinf.D2 = D11_norm;
-matrices_hinf.D1 = D12_norm * beta;
+Winf = W(3,5); 
+Cinf = C(Winf); 
+Dinf = D(Winf,3,7.3);
+matrices_hinf = matrices(Cinf,Dinf);
 
 hinf = HinfConstr();
 contrHinf = Controllers(matrices_hinf, hinf, 1);
@@ -143,17 +135,11 @@ x_hinf = sim_hinf.state.Data;
 y_hinf = sim_hinf.output.Data;
 u_hinf = sim_hinf.input.Data;
 
-% H2 control
-matrices_h2.A  = A;
-matrices_h2.B1  = B;
-matrices_h2.B2  = B2 / beta;
-matrices_h2.C = [matrices_hinf.C(1:2,1:8);
-                       zeros(2,8)];
-matrices_h2.D1 = [matrices_hinf.D1(1:2,1:2)
-                        1/umax  0;
-                        0       1/umax];
-matrices_h2.D2 = zeros(size(matrices_h2.C,1), size(matrices_h2.B2,2));
-                        
+%% H2 control
+W2 = W(2,6); 
+C2 = C(W2); 
+D2 = D(W2,1,3);
+matrices_h2 = matrices(C2,D2);
 
 h2 = H2Constr();
 contrH2 = Controllers(matrices_h2, h2, 1);
@@ -170,19 +156,11 @@ y_h2 = sim_h2.output.Data;
 u_h2 = sim_h2.input.Data;
 
 
-
-%%
-
-% L1 control
-matrices_l1.A  = A;
-matrices_l1.B1  = B;
-matrices_l1.B2  = B2 / beta;
-matrices_l1.C = [matrices_hinf.C(1:2,1:8);
-                       zeros(2,8)] * beta;
-matrices_l1.D1 = [matrices_hinf.D1(1:2,1:2)
-                        7/umax  0;
-                        0       4/umax] *beta;
-matrices_l1.D2 = zeros(size(matrices_h2.C,1), size(matrices_h2.B2,2));
+%% L1 control
+W1 = W(3,8); 
+C1 = C(W1); 
+D1 = D(W1,10,5);
+matrices_l1 = matrices(C1,D1);
 
 l1 = L1Constr();
 contrL1 = Controllers(matrices_l1, l1, 1);

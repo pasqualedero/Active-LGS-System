@@ -17,7 +17,7 @@ classdef L1Constr < Constraints
             D32 = matrices.D1;
             D31 = matrices.D2;
 
-            lambda = -max(real(eig(A))) + 10; %10
+            lambda = -max(real(eig(A)))+7; %10
 
             n = length(A);
             z = size(C3,1);
