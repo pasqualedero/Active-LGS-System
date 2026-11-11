@@ -157,10 +157,10 @@ u_h2 = sim_h2.input.Data;
 
 
 %% L1 control
-W1 = W(3,8); 
-C1 = C(W1); 
-D1 = D(W1,10,5);
-matrices_l1 = matrices(C1,D1);
+Wl1 = W(3,8); 
+Cl1 = C(Wl1); 
+Dl1 = D(Wl1,10,5);
+matrices_l1 = matrices(Cl1,Dl1);
 
 l1 = L1Constr();
 contrL1 = Controllers(matrices_l1, l1, 1);
