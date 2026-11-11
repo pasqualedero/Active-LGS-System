@@ -194,3 +194,8 @@ x_hinf_r = sim_hinf_r.state.Data;
 y_hinf_r = sim_hinf_r.output.Data;
 u_hinf_r = sim_hinf_r.input.Data;
 
+sys_cl_multi = ss(A + B*Kmulti, B2, matrices_hinf.C + matrices_hinf.D1*Kmulti, matrices_hinf.D2);
+
+plt = LMIplotter(reg);
+plt.plot("poles",sys_cl_multi);
+

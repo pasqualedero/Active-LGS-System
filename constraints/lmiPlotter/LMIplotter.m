@@ -11,12 +11,17 @@ classdef LMIplotter < handle
             obj.lmiRegion = lmiRegion;
         end
 
-        function plot(obj)
+        function plot(obj, opt)
+            arguments
+                obj 
+                opt.poles ss = ss();
+            end
+
             L = obj.lmiRegion.L;
             M = obj.lmiRegion.M;
 
-            xv = linspace(-10, 2, 1000);     % range parte reale
-            yv = linspace(-8, 8, 1000);      % range parte immaginaria
+            xv = linspace(-40, 2, 1000);     % range parte reale
+            yv = linspace(-12, 12, 1000);      % range parte immaginaria
             [X, Y] = meshgrid(xv, yv);
 
             inRegion = false(size(X));
@@ -26,7 +31,12 @@ classdef LMIplotter < handle
                 inRegion(k) = max(real(eig(F))) < 0; % definita negativa?
             end
 
-            figure; hold on; grid on
+            figure; hold on; grid on 
+            if ~isempty(opt.poles)
+                poles = pole(opt.poles);
+                plot(real(poles), imag(poles), 'rx', ...
+                    'MarkerSize', 10, 'LineWidth', 2);
+            end
             contourf(X, Y, double(inRegion), [0.5 0.5], 'FaceAlpha', 0.3);
             colormap([1 1 1; 0.6 0.8 1]);
             contour(X, Y, double(inRegion), [0.5 0.5], 'b', 'LineWidth', 1.5); % bordo
